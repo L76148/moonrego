@@ -376,6 +376,127 @@ fn Parser::parse_brace(self : Parser) -> Term raise ParseError {
 }
 
 ///|
+fn Parser::at_new_line(self : Parser) -> Bool {
+  if self.index == 0 {
+    false
+  } else {
+    let previous = self.tokens[self.index - 1]
+    self.peek().position.line > previous.position.line
+  }
+}
+
+///|
+fn Parser::parse_with(self : Parser, expr : Expr) -> Expr raise ParseError {
+  let modifiers : Array[WithModifier] = []
+  while self.peek_kind() == With {
+    let _ = self.advance()
+    let target = self.parse_expression_term()
+    let _ = self.expect(As, "'as'")
+    let value = self.parse_expression_term()
+    modifiers.push(WithModifier::new(target, value))
+  }
+  if modifiers.length() == 0 {
+    expr
+  } else {
+    Expr::with_modifiers(expr, modifiers, expr.position)
+  }
+}
+
+///|
+fn Parser::parse_some(self : Parser) -> Expr raise ParseError {
+  let position = self.peek().position
+  let _ = self.advance()
+  let vars : Array[Term] = [self.parse_expression_term()]
+  while self.peek_kind() == Comma {
+    let _ = self.advance()
+    vars.push(self.parse_expression_term())
+  }
+  if self.peek_kind() == In {
+    let _ = self.advance()
+    let collection = self.parse_expression_term()
+    Expr::some_in(vars, collection, position)
+  } else {
+    Expr::some_vars(vars, position)
+  }
+}
+
+///|
+fn Parser::parse_every(self : Parser) -> Expr raise ParseError {
+  let position = self.peek().position
+  let _ = self.advance()
+  let vars : Array[Term] = [self.parse_expression_term()]
+  while self.peek_kind() == Comma {
+    let _ = self.advance()
+    vars.push(self.parse_expression_term())
+  }
+  let _ = self.expect(In, "'in'")
+  let collection = self.parse_expression_term()
+  let _ = self.expect(LBrace, "'{'")
+  let body = self.parse_body_until(RBrace)
+  let _ = self.expect(RBrace, "'}'")
+  Expr::every(vars, collection, body, position)
+}
+
+///|
+fn Parser::parse_not(self : Parser) -> Expr raise ParseError {
+  let position = self.peek().position
+  let _ = self.advance()
+  let body = if self.peek_kind() == LBrace {
+    let _ = self.advance()
+    let inner = self.parse_body_until(RBrace)
+    let _ = self.expect(RBrace, "'}'")
+    inner
+  } else {
+    [self.parse_expr_statement()]
+  }
+  Expr::not(body, position)
+}
+
+///|
+fn Parser::parse_statement(self : Parser) -> Expr raise ParseError {
+  match self.peek_kind() {
+    SomeKeyword => self.parse_some()
+    Every => self.parse_every()
+    Not => self.parse_not()
+    _ => {
+      let expr = self.parse_expr_statement()
+      self.parse_with(expr)
+    }
+  }
+}
+
+///|
+/// Parses statements until the closing token. Statements are separated by a
+/// semicolon or by a line break that follows the end of the previous
+/// statement, so a line break inside brackets does not split a statement.
+fn Parser::parse_body_until(
+  self : Parser,
+  closing : TokenKind,
+) -> Array[Expr] raise ParseError {
+  let body : Array[Expr] = []
+  while true {
+    let kind = self.peek_kind()
+    if kind == closing || kind == Eof {
+      break
+    }
+    body.push(self.parse_statement())
+    let next = self.peek_kind()
+    if next == closing || next == Eof {
+      break
+    }
+    if next == Semicolon {
+      let _ = self.advance()
+      continue
+    }
+    if self.at_new_line() {
+      continue
+    }
+    raise self.unexpected("a statement separator")
+  }
+  body
+}
+
+///|
 fn source_tokens(source : String) -> Array[Token] raise ParseError {
   tokenize(source) catch {
     error => raise Lexical(error)
@@ -411,4 +532,15 @@ pub fn parse_expr(source : String) -> Expr raise ParseError {
     Eof => expr
     _ => raise TrailingTokens(parser.peek().position)
   }
+}
+
+///|
+/// Parses a statement body without its surrounding braces and requires the
+/// whole input to be consumed.
+///
+/// Statements are separated by `;` or by a line break. The body may contain
+/// value expressions, `some`, `every`, `not` and `with` modifiers.
+pub fn parse_body(source : String) -> Array[Expr] raise ParseError {
+  let parser = Parser::new(source_tokens(source))
+  parser.parse_body_until(Eof)
 }

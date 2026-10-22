@@ -12,6 +12,8 @@ pub fn is_ident_start(Char) -> Bool
 
 pub fn keyword_kind(String) -> TokenKind?
 
+pub fn parse_body(String) -> Array[Expr] raise ParseError
+
 pub fn parse_expr(String) -> Expr raise ParseError
 
 pub fn parse_term(String) -> Term raise ParseError
