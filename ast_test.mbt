@@ -92,10 +92,7 @@ test "comparison operators map from tokens" {
 ///|
 test "expression constructors build the expected kinds" {
   let position = start()
-  let count = @moonrego.Expr::term(
-    @moonrego.Term::call("count", [@moonrego.Term::variable("xs")]),
-    position,
-  )
+
   let compared = @moonrego.Expr::compare(
     @moonrego.CmpGreater,
     @moonrego.Term::call("count", [@moonrego.Term::variable("xs")]),
@@ -115,13 +112,16 @@ test "expression constructors build the expected kinds" {
   }
   let bound = @moonrego.Expr::assign(
     @moonrego.Term::variable("n"),
-    count,
+    @moonrego.Term::call("count", [@moonrego.Term::variable("xs")]),
     position,
   )
   match bound.kind {
     @moonrego.Assign(target, value) => {
       assert_eq(target, @moonrego.Term::variable("n"))
-      assert_eq(value, count)
+      assert_eq(
+        value,
+        @moonrego.Term::call("count", [@moonrego.Term::variable("xs")]),
+      )
     }
     _ => fail("expected an assignment")
   }

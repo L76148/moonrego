@@ -268,10 +268,10 @@ pub fn Expr::new(kind : ExprKind, position : Position) -> Expr {
 pub(all) enum ExprKind {
   /// A bare term, which is true when the term is defined and not false.
   Term(Term)
-  /// `term := expr`
-  Assign(Term, Expr)
-  /// `term = expr`
-  Unify(Term, Expr)
+  /// `term := term`
+  Assign(Term, Term)
+  /// `term = term`
+  Unify(Term, Term)
   /// `left op right`
   Compare(CompareOp, Term, Term)
   /// `some x, y`
@@ -298,12 +298,12 @@ pub fn Expr::term(term : Term, position : Position) -> Expr {
 }
 
 ///|
-pub fn Expr::assign(target : Term, value : Expr, position : Position) -> Expr {
+pub fn Expr::assign(target : Term, value : Term, position : Position) -> Expr {
   Expr::new(Assign(target, value), position)
 }
 
 ///|
-pub fn Expr::unify(target : Term, value : Expr, position : Position) -> Expr {
+pub fn Expr::unify(target : Term, value : Term, position : Position) -> Expr {
   Expr::new(Unify(target, value), position)
 }
 
@@ -389,7 +389,7 @@ pub(all) enum Term {
   ArrayLit(Array[Term])
   ObjectLit(Array[(Term, Term)])
   SetLit(Array[Term])
-  Call(String, Array[Term])
+  Call(Term, Array[Term])
   ArrayComprehension(Array[Expr], Term)
   SetComprehension(Array[Expr], Term)
   ObjectComprehension(Array[Expr], Term, Term)
@@ -448,7 +448,12 @@ pub fn Term::set_lit(items : Array[Term]) -> Term {
 
 ///|
 pub fn Term::call(name : String, args : Array[Term]) -> Term {
-  Call(name, args)
+  Call(Term::variable(name), args)
+}
+
+///|
+pub fn Term::call_term(callee : Term, args : Array[Term]) -> Term {
+  Call(callee, args)
 }
 
 ///|

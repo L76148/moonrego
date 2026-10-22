@@ -12,6 +12,8 @@ pub fn is_ident_start(Char) -> Bool
 
 pub fn keyword_kind(String) -> TokenKind?
 
+pub fn parse_term(String) -> Term raise ParseError
+
 pub fn tokenize(String) -> Array[Token] raise LexError
 
 pub fn version() -> String
@@ -27,6 +29,15 @@ pub(all) suberror LexError {
 } derive(@debug.Debug)
 pub fn LexError::message(Self) -> String
 pub fn LexError::to_repr(Self) -> @debug.Repr
+
+pub(all) suberror ParseError {
+  UnexpectedToken(TokenKind, Position, String)
+  UnexpectedEof(String)
+  TrailingTokens(Position)
+  Lexical(LexError)
+} derive(@debug.Debug)
+pub fn ParseError::message(Self) -> String
+pub fn ParseError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum CompareOp {
@@ -59,7 +70,7 @@ pub(all) struct Expr {
   kind : ExprKind
   position : Position
 } derive(Eq, @debug.Debug)
-pub fn Expr::assign(Term, Self, Position) -> Self
+pub fn Expr::assign(Term, Term, Position) -> Self
 pub fn Expr::compare(CompareOp, Term, Term, Position) -> Self
 pub fn Expr::equal(Self, Self) -> Bool
 pub fn Expr::every(Array[Term], Term, Array[Self], Position) -> Self
@@ -70,13 +81,13 @@ pub fn Expr::some_in(Array[Term], Term, Position) -> Self
 pub fn Expr::some_vars(Array[Term], Position) -> Self
 pub fn Expr::term(Term, Position) -> Self
 pub fn Expr::to_repr(Self) -> @debug.Repr
-pub fn Expr::unify(Term, Self, Position) -> Self
+pub fn Expr::unify(Term, Term, Position) -> Self
 pub fn Expr::with_modifiers(Self, Array[WithModifier], Position) -> Self
 
 pub(all) enum ExprKind {
   Term(Term)
-  Assign(Term, Expr)
-  Unify(Term, Expr)
+  Assign(Term, Term)
+  Unify(Term, Term)
   Compare(CompareOp, Term, Term)
   SomeVars(Array[Term])
   SomeIn(Array[Term], Term)
@@ -171,7 +182,7 @@ pub(all) enum Term {
   ArrayLit(Array[Term])
   ObjectLit(Array[(Term, Term)])
   SetLit(Array[Term])
-  Call(String, Array[Term])
+  Call(Term, Array[Term])
   ArrayComprehension(Array[Expr], Term)
   SetComprehension(Array[Expr], Term)
   ObjectComprehension(Array[Expr], Term, Term)
@@ -180,6 +191,7 @@ pub fn Term::array_comprehension(Array[Expr], Self) -> Self
 pub fn Term::array_lit(Array[Self]) -> Self
 pub fn Term::boolean(Bool) -> Self
 pub fn Term::call(String, Array[Self]) -> Self
+pub fn Term::call_term(Self, Array[Self]) -> Self
 pub fn Term::equal(Self, Self) -> Bool
 pub fn Term::not_equal(Self, Self) -> Bool
 pub fn Term::null() -> Self
