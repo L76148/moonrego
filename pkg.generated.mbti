@@ -1,12 +1,104 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "L76148/moonrego"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
+pub fn is_ident_continue(Char) -> Bool
+
+pub fn is_ident_start(Char) -> Bool
+
+pub fn keyword_kind(String) -> TokenKind?
+
+pub fn tokenize(String) -> Array[Token] raise LexError
+
 pub fn version() -> String
 
 // Errors
+pub(all) suberror LexError {
+  UnexpectedChar(Position, Char)
+  UnterminatedString(Position)
+  UnterminatedRawString(Position)
+  InvalidEscape(Position, Char)
+  InvalidUnicodeEscape(Position)
+  InvalidNumber(Position, String)
+} derive(@debug.Debug)
+pub fn LexError::message(Self) -> String
+pub fn LexError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+pub(all) struct Position {
+  offset : Int
+  line : Int
+  column : Int
+} derive(Eq, @debug.Debug)
+pub fn Position::equal(Self, Self) -> Bool
+pub fn Position::not_equal(Self, Self) -> Bool
+pub fn Position::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Token {
+  kind : TokenKind
+  text : String
+  position : Position
+} derive(Eq, @debug.Debug)
+pub fn Token::equal(Self, Self) -> Bool
+pub fn Token::new(TokenKind, String, Position) -> Self
+pub fn Token::not_equal(Self, Self) -> Bool
+pub fn Token::to_repr(Self) -> @debug.Repr
+
+pub(all) enum TokenKind {
+  Eof
+  Ident
+  NumberLit
+  StringLit
+  RawStringLit
+  Package
+  Import
+  As
+  Default
+  Else
+  Not
+  SomeKeyword
+  Every
+  In
+  If
+  Contains
+  With
+  TrueKeyword
+  FalseKeyword
+  NullKeyword
+  LBrace
+  RBrace
+  LBracket
+  RBracket
+  LParen
+  RParen
+  Comma
+  Colon
+  Semicolon
+  Dot
+  Pipe
+  Ampersand
+  Assign
+  Equal
+  EqualEqual
+  NotEqual
+  Less
+  LessEqual
+  Greater
+  GreaterEqual
+  Plus
+  Minus
+  Star
+  Slash
+  Percent
+} derive(Eq, @debug.Debug)
+pub fn TokenKind::equal(Self, Self) -> Bool
+pub fn TokenKind::name(Self) -> String
+pub fn TokenKind::not_equal(Self, Self) -> Bool
+pub fn TokenKind::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 
