@@ -83,9 +83,121 @@ fn Parser::expect(
 }
 
 ///|
-fn Parser::parse_term(self : Parser) -> Term raise ParseError {
+fn Parser::parse_postfix(self : Parser) -> Term raise ParseError {
   let base = self.parse_primary()
   self.parse_suffixes(base)
+}
+
+///|
+fn Parser::parse_unary(self : Parser) -> Term raise ParseError {
+  if self.peek_kind() == Minus {
+    let _ = self.advance()
+    let operand = self.parse_unary()
+    match operand {
+      NumberTerm(text) =>
+        if text.get_char(0) == Some('-') {
+          Term::number(text[1:].to_owned())
+        } else {
+          Term::number("-" + text)
+        }
+      _ => Term::call("minus", [Term::number("0"), operand])
+    }
+  } else {
+    self.parse_postfix()
+  }
+}
+
+///|
+fn Parser::parse_multiplicative(self : Parser) -> Term raise ParseError {
+  let mut left = self.parse_unary()
+  let mut running = true
+  while running {
+    match self.peek_kind() {
+      Star => {
+        let _ = self.advance()
+        left = Term::call("mul", [left, self.parse_unary()])
+      }
+      Slash => {
+        let _ = self.advance()
+        left = Term::call("div", [left, self.parse_unary()])
+      }
+      Percent => {
+        let _ = self.advance()
+        left = Term::call("rem", [left, self.parse_unary()])
+      }
+      _ => running = false
+    }
+  }
+  left
+}
+
+///|
+fn Parser::parse_additive(self : Parser) -> Term raise ParseError {
+  let mut left = self.parse_multiplicative()
+  let mut running = true
+  while running {
+    match self.peek_kind() {
+      Plus => {
+        let _ = self.advance()
+        left = Term::call("plus", [left, self.parse_multiplicative()])
+      }
+      Minus => {
+        let _ = self.advance()
+        left = Term::call("minus", [left, self.parse_multiplicative()])
+      }
+      _ => running = false
+    }
+  }
+  left
+}
+
+///|
+fn Parser::parse_intersection(self : Parser) -> Term raise ParseError {
+  let mut left = self.parse_additive()
+  while self.peek_kind() == Ampersand {
+    let _ = self.advance()
+    left = Term::call("intersection", [left, self.parse_additive()])
+  }
+  left
+}
+
+///|
+/// Parses one term including the infix operators. `|` binds loosest, then
+/// `&`, then `+` and `-`, then `*`, `/` and `%`, then unary minus.
+fn Parser::parse_expression_term(self : Parser) -> Term raise ParseError {
+  let mut left = self.parse_intersection()
+  while self.peek_kind() == Pipe {
+    let _ = self.advance()
+    left = Term::call("union", [left, self.parse_intersection()])
+  }
+  left
+}
+
+///|
+fn Parser::parse_expr_statement(self : Parser) -> Expr raise ParseError {
+  let position = self.peek().position
+  let left = self.parse_expression_term()
+  match self.peek_kind() {
+    Assign => {
+      let _ = self.advance()
+      let right = self.parse_expression_term()
+      Expr::assign(left, right, position)
+    }
+    Equal => {
+      let _ = self.advance()
+      let right = self.parse_expression_term()
+      Expr::unify(left, right, position)
+    }
+    kind =>
+      match CompareOp::from_token(kind) {
+        Some(op) => {
+          let _ = self.advance()
+          let right = self.parse_expression_term()
+          Expr::compare(op, left, right, position)
+        }
+        None => Expr::term(left, position)
+      }
+  }
 }
 
 ///|
@@ -116,22 +228,9 @@ fn Parser::parse_primary(self : Parser) -> Term raise ParseError {
       let _ = self.advance()
       Term::variable(token.text)
     }
-    Minus => {
-      let _ = self.advance()
-      let operand = self.parse_term()
-      match operand {
-        NumberTerm(text) =>
-          if text.get_char(0) == Some('-') {
-            Term::number(text[1:].to_owned())
-          } else {
-            Term::number("-" + text)
-          }
-        _ => Term::call("minus", [Term::number("0"), operand])
-      }
-    }
     LParen => {
       let _ = self.advance()
-      let inner = self.parse_term()
+      let inner = self.parse_expression_term()
       let _ = self.expect(RParen, "')'")
       inner
     }
@@ -160,7 +259,7 @@ fn Parser::parse_suffixes(self : Parser, base : Term) -> Term raise ParseError {
       }
       LBracket => {
         let _ = self.advance()
-        let index = self.parse_term()
+        let index = self.parse_expression_term()
         let _ = self.expect(RBracket, "']'")
         steps.push(RefStep::index(index))
       }
@@ -193,7 +292,7 @@ fn Parser::parse_arguments(self : Parser) -> Array[Term] raise ParseError {
     return args
   }
   while true {
-    args.push(self.parse_term())
+    args.push(self.parse_expression_term())
     if self.peek_kind() == Comma {
       let _ = self.advance()
       if self.peek_kind() == RParen {
@@ -219,7 +318,7 @@ fn Parser::parse_array(self : Parser) -> Term raise ParseError {
     return Term::array_lit(items)
   }
   while true {
-    items.push(self.parse_term())
+    items.push(self.parse_expression_term())
     if self.peek_kind() == Comma {
       let _ = self.advance()
       if self.peek_kind() == RBracket {
@@ -243,10 +342,10 @@ fn Parser::parse_brace(self : Parser) -> Term raise ParseError {
     let _ = self.advance()
     return Term::object_lit([])
   }
-  let first = self.parse_term()
+  let first = self.parse_expression_term()
   if self.peek_kind() == Colon {
     let _ = self.advance()
-    let first_value = self.parse_term()
+    let first_value = self.parse_expression_term()
     let pairs : Array[(Term, Term)] = [(first, first_value)]
     while self.peek_kind() == Comma {
       let _ = self.advance()
@@ -254,9 +353,9 @@ fn Parser::parse_brace(self : Parser) -> Term raise ParseError {
         let _ = self.advance()
         return Term::object_lit(pairs)
       }
-      let key = self.parse_term()
+      let key = self.parse_expression_term()
       let _ = self.expect(Colon, "':'")
-      let value = self.parse_term()
+      let value = self.parse_expression_term()
       pairs.push((key, value))
     }
     let _ = self.expect(RBrace, "'}'")
@@ -269,7 +368,7 @@ fn Parser::parse_brace(self : Parser) -> Term raise ParseError {
         let _ = self.advance()
         return Term::set_lit(items)
       }
-      items.push(self.parse_term())
+      items.push(self.parse_expression_term())
     }
     let _ = self.expect(RBrace, "'}'")
     Term::set_lit(items)
@@ -277,17 +376,39 @@ fn Parser::parse_brace(self : Parser) -> Term raise ParseError {
 }
 
 ///|
-/// Parses one term and requires the whole input to be consumed.
+fn source_tokens(source : String) -> Array[Token] raise ParseError {
+  tokenize(source) catch {
+    error => raise Lexical(error)
+  }
+}
+
+///|
+/// Parses one term including the infix operators, and requires the whole
+/// input to be consumed.
 ///
 /// Supported: scalars, variables, references with field and index steps,
-/// calls, arrays, objects, sets and parentheses. Comprehensions, arithmetic
-/// and expression statements arrive with the expression parser.
+/// calls, arrays, objects, sets, parentheses and the arithmetic and set
+/// operators. Comprehensions and statement keywords arrive later.
 pub fn parse_term(source : String) -> Term raise ParseError {
-  let tokens = tokenize(source) catch { error => raise Lexical(error) }
-  let parser = Parser::new(tokens)
-  let term = parser.parse_term()
+  let parser = Parser::new(source_tokens(source))
+  let term = parser.parse_expression_term()
   match parser.peek().kind {
     Eof => term
+    _ => raise TrailingTokens(parser.peek().position)
+  }
+}
+
+///|
+/// Parses one value expression and requires the whole input to be consumed.
+///
+/// The expression is a term, a comparison, an assignment (`:=`) or a
+/// unification (`=`). The operators are lowered to the Rego built-ins
+/// `plus`, `minus`, `mul`, `div`, `rem`, `intersection` and `union`.
+pub fn parse_expr(source : String) -> Expr raise ParseError {
+  let parser = Parser::new(source_tokens(source))
+  let expr = parser.parse_expr_statement()
+  match parser.peek().kind {
+    Eof => expr
     _ => raise TrailingTokens(parser.peek().position)
   }
 }
