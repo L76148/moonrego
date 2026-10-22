@@ -29,14 +29,169 @@ pub fn LexError::message(Self) -> String
 pub fn LexError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+pub(all) enum CompareOp {
+  CmpEqual
+  CmpNotEqual
+  CmpLess
+  CmpLessEqual
+  CmpGreater
+  CmpGreaterEqual
+} derive(Eq, @debug.Debug)
+pub fn CompareOp::equal(Self, Self) -> Bool
+pub fn CompareOp::from_token(TokenKind) -> Self?
+pub fn CompareOp::not_equal(Self, Self) -> Bool
+pub fn CompareOp::output(Self, &Logger) -> Unit
+pub fn CompareOp::to_repr(Self) -> @debug.Repr
+pub fn CompareOp::to_string(Self) -> String
+pub impl Show for CompareOp
+
+pub(all) struct ElseRule {
+  value : Expr?
+  body : Array[Expr]
+  position : Position
+} derive(Eq, @debug.Debug)
+pub fn ElseRule::equal(Self, Self) -> Bool
+pub fn ElseRule::new(Expr?, Array[Expr], Position) -> Self
+pub fn ElseRule::not_equal(Self, Self) -> Bool
+pub fn ElseRule::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Expr {
+  kind : ExprKind
+  position : Position
+} derive(Eq, @debug.Debug)
+pub fn Expr::assign(Term, Self, Position) -> Self
+pub fn Expr::compare(CompareOp, Term, Term, Position) -> Self
+pub fn Expr::equal(Self, Self) -> Bool
+pub fn Expr::every(Array[Term], Term, Array[Self], Position) -> Self
+pub fn Expr::new(ExprKind, Position) -> Self
+pub fn Expr::not(Array[Self], Position) -> Self
+pub fn Expr::not_equal(Self, Self) -> Bool
+pub fn Expr::some_in(Array[Term], Term, Position) -> Self
+pub fn Expr::some_vars(Array[Term], Position) -> Self
+pub fn Expr::term(Term, Position) -> Self
+pub fn Expr::to_repr(Self) -> @debug.Repr
+pub fn Expr::unify(Term, Self, Position) -> Self
+pub fn Expr::with_modifiers(Self, Array[WithModifier], Position) -> Self
+
+pub(all) enum ExprKind {
+  Term(Term)
+  Assign(Term, Expr)
+  Unify(Term, Expr)
+  Compare(CompareOp, Term, Term)
+  SomeVars(Array[Term])
+  SomeIn(Array[Term], Term)
+  Every(Array[Term], Term, Array[Expr])
+  Not(Array[Expr])
+  With(Expr, Array[WithModifier])
+} derive(Eq, @debug.Debug)
+pub fn ExprKind::equal(Self, Self) -> Bool
+pub fn ExprKind::not_equal(Self, Self) -> Bool
+pub fn ExprKind::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Import {
+  path : Array[String]
+  alias_name : String?
+  position : Position
+} derive(Eq, @debug.Debug)
+pub fn Import::equal(Self, Self) -> Bool
+pub fn Import::new(Array[String], String?, Position) -> Self
+pub fn Import::not_equal(Self, Self) -> Bool
+pub fn Import::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Module {
+  package_path : Array[String]
+  imports : Array[Import]
+  rules : Array[Rule]
+  position : Position
+} derive(Eq, @debug.Debug)
+pub fn Module::equal(Self, Self) -> Bool
+pub fn Module::new(Array[String], Array[Import], Array[Rule], Position) -> Self
+pub fn Module::not_equal(Self, Self) -> Bool
+pub fn Module::to_repr(Self) -> @debug.Repr
+
 pub(all) struct Position {
   offset : Int
   line : Int
   column : Int
 } derive(Eq, @debug.Debug)
 pub fn Position::equal(Self, Self) -> Bool
+pub fn Position::new(Int, Int, Int) -> Self
 pub fn Position::not_equal(Self, Self) -> Bool
 pub fn Position::to_repr(Self) -> @debug.Repr
+
+pub(all) enum RefStep {
+  Field(String)
+  Index(Term)
+} derive(Eq, @debug.Debug)
+pub fn RefStep::equal(Self, Self) -> Bool
+pub fn RefStep::field(String) -> Self
+pub fn RefStep::index(Term) -> Self
+pub fn RefStep::not_equal(Self, Self) -> Bool
+pub fn RefStep::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Rule {
+  kind : RuleKind
+  name : String
+  args : Array[String]
+  key : Term?
+  value : Expr?
+  body : Array[Expr]
+  is_default : Bool
+  else_rules : Array[ElseRule]
+  position : Position
+} derive(Eq, @debug.Debug)
+pub fn Rule::complete(String, Expr?, Array[Expr], Position) -> Self
+pub fn Rule::equal(Self, Self) -> Bool
+pub fn Rule::function(String, Array[String], Expr?, Array[Expr], Position) -> Self
+pub fn Rule::not_equal(Self, Self) -> Bool
+pub fn Rule::partial_object(String, Term, Expr, Array[Expr], Position) -> Self
+pub fn Rule::partial_set(String, Term, Array[Expr], Position) -> Self
+pub fn Rule::to_repr(Self) -> @debug.Repr
+
+pub(all) enum RuleKind {
+  Complete
+  PartialSet
+  PartialObject
+  Function
+} derive(Eq, @debug.Debug)
+pub fn RuleKind::equal(Self, Self) -> Bool
+pub fn RuleKind::not_equal(Self, Self) -> Bool
+pub fn RuleKind::output(Self, &Logger) -> Unit
+pub fn RuleKind::to_repr(Self) -> @debug.Repr
+pub fn RuleKind::to_string(Self) -> String
+pub impl Show for RuleKind
+
+pub(all) enum Term {
+  NullTerm
+  BoolTerm(Bool)
+  NumberTerm(String)
+  StringTerm(String)
+  Var(String)
+  Ref(Term, Array[RefStep])
+  ArrayLit(Array[Term])
+  ObjectLit(Array[(Term, Term)])
+  SetLit(Array[Term])
+  Call(String, Array[Term])
+  ArrayComprehension(Array[Expr], Term)
+  SetComprehension(Array[Expr], Term)
+  ObjectComprehension(Array[Expr], Term, Term)
+} derive(Eq, @debug.Debug)
+pub fn Term::array_comprehension(Array[Expr], Self) -> Self
+pub fn Term::array_lit(Array[Self]) -> Self
+pub fn Term::boolean(Bool) -> Self
+pub fn Term::call(String, Array[Self]) -> Self
+pub fn Term::equal(Self, Self) -> Bool
+pub fn Term::not_equal(Self, Self) -> Bool
+pub fn Term::null() -> Self
+pub fn Term::number(String) -> Self
+pub fn Term::object_comprehension(Array[Expr], Self, Self) -> Self
+pub fn Term::object_lit(Array[(Self, Self)]) -> Self
+pub fn Term::reference(Self, Array[RefStep]) -> Self
+pub fn Term::set_comprehension(Array[Expr], Self) -> Self
+pub fn Term::set_lit(Array[Self]) -> Self
+pub fn Term::string(String) -> Self
+pub fn Term::to_repr(Self) -> @debug.Repr
+pub fn Term::variable(String) -> Self
 
 pub(all) struct Token {
   kind : TokenKind
@@ -99,6 +254,15 @@ pub fn TokenKind::equal(Self, Self) -> Bool
 pub fn TokenKind::name(Self) -> String
 pub fn TokenKind::not_equal(Self, Self) -> Bool
 pub fn TokenKind::to_repr(Self) -> @debug.Repr
+
+pub(all) struct WithModifier {
+  target : Term
+  value : Term
+} derive(Eq, @debug.Debug)
+pub fn WithModifier::equal(Self, Self) -> Bool
+pub fn WithModifier::new(Term, Term) -> Self
+pub fn WithModifier::not_equal(Self, Self) -> Bool
+pub fn WithModifier::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

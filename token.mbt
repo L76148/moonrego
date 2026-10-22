@@ -14,6 +14,11 @@ pub extend Position with Eq::{equal, not_equal}
 pub extend Position with @debug.Debug::{to_repr}
 
 ///|
+pub fn Position::new(offset : Int32, line : Int32, column : Int32) -> Position {
+  { offset, line, column, }
+}
+
+///|
 /// The lexical categories of Rego.
 ///
 /// The variants that share a name with a built-in constructor or a core type
