@@ -1,0 +1,6 @@
+import {
+  "L76148/moonrego" @rego,
+  "moonbitlang/core/env",
+}
+
+pkgtype(kind: "executable")

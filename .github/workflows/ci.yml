@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Toolchain versions
+        run: |
+          moon version --all
+          moon update
+
+      - name: Check (all backends, warnings are errors)
+        run: moon check --target all --deny-warn
+
+      - name: Formatting
+        run: moon fmt --check
+
+      - name: Test (wasm)
+        run: moon test --target wasm --deny-warn
+
+      - name: Test (wasm-gc)
+        run: moon test --target wasm-gc --deny-warn
+
+      - name: Interfaces are up to date
+        run: |
+          moon info
+          git diff --exit-code
+
+      - name: Run the command line tool
+        run: |
+          moon run cmd/moonrego -- version
+          moon run cmd/moonrego -- help
