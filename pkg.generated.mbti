@@ -16,6 +16,8 @@ pub fn parse_body(String) -> Array[Expr] raise ParseError
 
 pub fn parse_expr(String) -> Expr raise ParseError
 
+pub fn parse_module(String) -> Module raise ParseError
+
 pub fn parse_term(String) -> Term raise ParseError
 
 pub fn tokenize(String) -> Array[Token] raise LexError
@@ -61,12 +63,12 @@ pub fn CompareOp::to_string(Self) -> String
 pub impl Show for CompareOp
 
 pub(all) struct ElseRule {
-  value : Expr?
+  value : Term?
   body : Array[Expr]
   position : Position
 } derive(Eq, @debug.Debug)
 pub fn ElseRule::equal(Self, Self) -> Bool
-pub fn ElseRule::new(Expr?, Array[Expr], Position) -> Self
+pub fn ElseRule::new(Term?, Array[Expr], Position) -> Self
 pub fn ElseRule::not_equal(Self, Self) -> Bool
 pub fn ElseRule::to_repr(Self) -> @debug.Repr
 
@@ -149,17 +151,17 @@ pub(all) struct Rule {
   name : String
   args : Array[String]
   key : Term?
-  value : Expr?
+  value : Term?
   body : Array[Expr]
   is_default : Bool
   else_rules : Array[ElseRule]
   position : Position
 } derive(Eq, @debug.Debug)
-pub fn Rule::complete(String, Expr?, Array[Expr], Position) -> Self
+pub fn Rule::complete(String, Term?, Array[Expr], Position) -> Self
 pub fn Rule::equal(Self, Self) -> Bool
-pub fn Rule::function(String, Array[String], Expr?, Array[Expr], Position) -> Self
+pub fn Rule::function(String, Array[String], Term?, Array[Expr], Position) -> Self
 pub fn Rule::not_equal(Self, Self) -> Bool
-pub fn Rule::partial_object(String, Term, Expr, Array[Expr], Position) -> Self
+pub fn Rule::partial_object(String, Term, Term?, Array[Expr], Position) -> Self
 pub fn Rule::partial_set(String, Term, Array[Expr], Position) -> Self
 pub fn Rule::to_repr(Self) -> @debug.Repr
 

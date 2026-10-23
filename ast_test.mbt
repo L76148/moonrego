@@ -7,7 +7,7 @@ fn start() -> @moonrego.Position {
 test "a module keeps its package, imports and rules" {
   let position = start()
   let imported = @moonrego.Import::new(["data", "foo"], Some("foo"), position)
-  let value = @moonrego.Expr::term(@moonrego.Term::boolean(true), position)
+  let value = @moonrego.Term::boolean(true)
   let rule = @moonrego.Rule::function(
     "allow",
     ["user"],
@@ -28,7 +28,7 @@ test "a module keeps its package, imports and rules" {
 ///|
 test "a rule can be marked default or extended with else branches" {
   let position = start()
-  let value = @moonrego.Expr::term(@moonrego.Term::boolean(false), position)
+  let value = @moonrego.Term::boolean(false)
   let rule = @moonrego.Rule::complete("allow", Some(value), [], position)
   assert_eq(rule.is_default, false)
   let defaulted = { ..rule, is_default: true, }

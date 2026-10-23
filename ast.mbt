@@ -91,7 +91,7 @@ pub(all) struct Rule {
   name : String
   args : Array[String]
   key : Term?
-  value : Expr?
+  value : Term?
   body : Array[Expr]
   is_default : Bool
   else_rules : Array[ElseRule]
@@ -105,21 +105,20 @@ pub extend Rule with Eq::{equal, not_equal}
 pub extend Rule with @debug.Debug::{to_repr}
 
 ///|
-fn Rule::empty(
+fn Rule::head(
   kind : RuleKind,
   name : String,
+  args : Array[String],
   key : Term?,
-  value : Expr?,
-  body : Array[Expr],
   position : Position,
 ) -> Rule {
   {
     kind,
     name,
-    args: [],
+    args,
     key,
-    value,
-    body,
+    value: None,
+    body: [],
     is_default: false,
     else_rules: [],
     position,
@@ -130,11 +129,12 @@ fn Rule::empty(
 /// A complete rule: `name := value` or `name if { body }`.
 pub fn Rule::complete(
   name : String,
-  value : Expr?,
+  value : Term?,
   body : Array[Expr],
   position : Position,
 ) -> Rule {
-  Rule::empty(Complete, name, None, value, body, position)
+  let rule = Rule::head(Complete, name, [], None, position)
+  { ..rule, value, body, }
 }
 
 ///|
@@ -145,7 +145,8 @@ pub fn Rule::partial_set(
   body : Array[Expr],
   position : Position,
 ) -> Rule {
-  Rule::empty(PartialSet, name, Some(element), None, body, position)
+  let rule = Rule::head(PartialSet, name, [], Some(element), position)
+  { ..rule, body, }
 }
 
 ///|
@@ -153,11 +154,12 @@ pub fn Rule::partial_set(
 pub fn Rule::partial_object(
   name : String,
   key : Term,
-  value : Expr,
+  value : Term?,
   body : Array[Expr],
   position : Position,
 ) -> Rule {
-  Rule::empty(PartialObject, name, Some(key), Some(value), body, position)
+  let rule = Rule::head(PartialObject, name, [], Some(key), position)
+  { ..rule, value, body, }
 }
 
 ///|
@@ -165,18 +167,18 @@ pub fn Rule::partial_object(
 pub fn Rule::function(
   name : String,
   args : Array[String],
-  value : Expr?,
+  value : Term?,
   body : Array[Expr],
   position : Position,
 ) -> Rule {
-  let rule = Rule::empty(Function, name, None, value, body, position)
-  { ..rule, args, }
+  let rule = Rule::head(Function, name, args, None, position)
+  { ..rule, value, body, }
 }
 
 ///|
 /// One `else` branch of a rule.
 pub(all) struct ElseRule {
-  value : Expr?
+  value : Term?
   body : Array[Expr]
   position : Position
 } derive(Eq, @debug.Debug)
@@ -189,7 +191,7 @@ pub extend ElseRule with @debug.Debug::{to_repr}
 
 ///|
 pub fn ElseRule::new(
-  value : Expr?,
+  value : Term?,
   body : Array[Expr],
   position : Position,
 ) -> ElseRule {

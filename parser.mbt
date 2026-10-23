@@ -497,6 +497,215 @@ fn Parser::parse_body_until(
 }
 
 ///|
+fn is_name_kind(kind : TokenKind) -> Bool {
+  match kind {
+    Ident
+    | As
+    | Default
+    | Else
+    | Not
+    | SomeKeyword
+    | Every
+    | In
+    | If
+    | Contains
+    | With => true
+    _ => false
+  }
+}
+
+///|
+fn Parser::parse_name(
+  self : Parser,
+  expected : String,
+) -> String raise ParseError {
+  let token = self.peek()
+  if is_name_kind(token.kind) {
+    let _ = self.advance()
+    token.text
+  } else {
+    raise self.unexpected(expected)
+  }
+}
+
+///|
+fn Parser::parse_path(
+  self : Parser,
+  expected : String,
+) -> Array[String] raise ParseError {
+  let segments : Array[String] = [self.parse_name(expected)]
+  while self.peek_kind() == Dot {
+    let _ = self.advance()
+    segments.push(self.parse_name("a path segment"))
+  }
+  segments
+}
+
+///|
+fn Parser::parse_parameters(self : Parser) -> Array[String] raise ParseError {
+  let _ = self.expect(LParen, "'('")
+  let params : Array[String] = []
+  if self.peek_kind() == RParen {
+    let _ = self.advance()
+    return params
+  }
+  while true {
+    params.push(self.parse_name("a parameter name"))
+    if self.peek_kind() == Comma {
+      let _ = self.advance()
+      if self.peek_kind() == RParen {
+        let _ = self.advance()
+        break
+      }
+    } else if self.peek_kind() == RParen {
+      let _ = self.advance()
+      break
+    } else {
+      raise self.unexpected("',' or ')'")
+    }
+  }
+  params
+}
+
+///|
+fn Parser::parse_braced_body(self : Parser) -> Array[Expr] raise ParseError {
+  let _ = self.expect(LBrace, "'{'")
+  let body = self.parse_body_until(RBrace)
+  let _ = self.expect(RBrace, "'}'")
+  body
+}
+
+///|
+fn Parser::parse_rule_tail(self : Parser, rule : Rule) -> Rule raise ParseError {
+  let mut current = rule
+  match self.peek_kind() {
+    Assign | Equal => {
+      let _ = self.advance()
+      current = { ..current, value: Some(self.parse_expression_term()), }
+    }
+    _ => ()
+  }
+  if self.peek_kind() == If {
+    let _ = self.advance()
+    current = { ..current, body: self.parse_braced_body(), }
+  } else if self.peek_kind() == LBrace {
+    current = { ..current, body: self.parse_braced_body(), }
+  }
+  let branches : Array[ElseRule] = []
+  while self.peek_kind() == Else {
+    let position = self.peek().position
+    let _ = self.advance()
+    let mut value : Term? = None
+    match self.peek_kind() {
+      Assign | Equal => {
+        let _ = self.advance()
+        value = Some(self.parse_expression_term())
+      }
+      _ => ()
+    }
+    let body = if self.peek_kind() == If {
+      let _ = self.advance()
+      self.parse_braced_body()
+    } else if self.peek_kind() == LBrace {
+      self.parse_braced_body()
+    } else {
+      []
+    }
+    branches.push(ElseRule::new(value, body, position))
+  }
+  if branches.length() == 0 {
+    current
+  } else {
+    { ..current, else_rules: branches, }
+  }
+}
+
+///|
+fn Parser::parse_rule(self : Parser) -> Rule raise ParseError {
+  let position = self.peek().position
+  let mut is_default = false
+  if self.peek_kind() == Default {
+    let _ = self.advance()
+    is_default = true
+  }
+  let name = self.parse_name("a rule name")
+  let head = match self.peek_kind() {
+    LParen =>
+      Rule::head(Function, name, self.parse_parameters(), None, position)
+    LBracket => {
+      let _ = self.advance()
+      let key = self.parse_expression_term()
+      let _ = self.expect(RBracket, "']'")
+      if self.peek_kind() == Assign || self.peek_kind() == Equal {
+        Rule::head(PartialObject, name, [], Some(key), position)
+      } else {
+        Rule::head(PartialSet, name, [], Some(key), position)
+      }
+    }
+    Contains => {
+      let _ = self.advance()
+      let element = self.parse_expression_term()
+      Rule::head(PartialSet, name, [], Some(element), position)
+    }
+    _ => Rule::head(Complete, name, [], None, position)
+  }
+  let rule = self.parse_rule_tail(head)
+  { ..rule, is_default, }
+}
+
+///|
+fn Parser::parse_import(self : Parser) -> Import raise ParseError {
+  let position = self.peek().position
+  let _ = self.expect(Import, "'import'")
+  let path = self.parse_path("an import path")
+  let alias_name = if self.peek_kind() == As {
+    let _ = self.advance()
+    Some(self.parse_name("an import alias"))
+  } else {
+    None
+  }
+  Import::new(path, alias_name, position)
+}
+
+///|
+fn Parser::parse_module(self : Parser) -> Module raise ParseError {
+  let position = self.peek().position
+  let _ = self.expect(Package, "'package'")
+  let package_path = self.parse_path("a package name")
+  let imports : Array[Import] = []
+  while self.peek_kind() == Import {
+    imports.push(self.parse_import())
+  }
+  let rules : Array[Rule] = []
+  while self.peek_kind() != Eof {
+    rules.push(self.parse_rule())
+    let next = self.peek_kind()
+    if next == Eof {
+      break
+    }
+    if next == Semicolon {
+      let _ = self.advance()
+      continue
+    }
+    if self.at_new_line() == false {
+      raise self.unexpected("a newline between rules")
+    }
+  }
+  Module::new(package_path, imports, rules, position)
+}
+
+///|
+/// Parses one Rego module: its package, imports and rules.
+pub fn parse_module(source : String) -> Module raise ParseError {
+  let parser = Parser::new(source_tokens(source))
+  let module_ = parser.parse_module()
+  match parser.peek().kind {
+    Eof => module_
+    _ => raise TrailingTokens(parser.peek().position)
+  }
+}
+
+///|
 fn source_tokens(source : String) -> Array[Token] raise ParseError {
   tokenize(source) catch {
     error => raise Lexical(error)
