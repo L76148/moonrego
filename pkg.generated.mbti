@@ -28,6 +28,17 @@ pub fn tokenize(String) -> Array[Token] raise LexError
 pub fn version() -> String
 
 // Errors
+pub(all) suberror EvalError {
+  UnknownFunction(String)
+  Unsupported(String)
+  InvalidOperation(String)
+  DivisionByZero
+  RecursionLimit(String)
+  Query(ParseError)
+} derive(@debug.Debug)
+pub fn EvalError::message(Self) -> String
+pub fn EvalError::to_repr(Self) -> @debug.Repr
+
 pub(all) suberror LexError {
   UnexpectedChar(Position, Char)
   UnterminatedString(Position)
@@ -74,6 +85,17 @@ pub fn ElseRule::equal(Self, Self) -> Bool
 pub fn ElseRule::new(Term?, Array[Expr], Position) -> Self
 pub fn ElseRule::not_equal(Self, Self) -> Bool
 pub fn ElseRule::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Evaluator {
+  module_ : Module
+  data : Value
+  input : Value
+  mut rule_depth : Int
+} derive(@debug.Debug)
+pub fn Evaluator::new(Module, Value, Value) -> Self
+pub fn Evaluator::query(Self, Term) -> Value? raise EvalError
+pub fn Evaluator::query_text(Self, String) -> Value? raise EvalError
+pub fn Evaluator::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Expr {
   kind : ExprKind
