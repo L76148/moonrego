@@ -317,14 +317,25 @@ fn Parser::parse_array(self : Parser) -> Term raise ParseError {
     let _ = self.advance()
     return Term::array_lit(items)
   }
+  let first = self.parse_intersection()
+  if self.peek_kind() == Pipe {
+    let _ = self.advance()
+    let body = self.parse_body_until(RBracket)
+    if body.length() == 0 {
+      raise self.unexpected("a body statement")
+    }
+    let _ = self.expect(RBracket, "']'")
+    return Term::array_comprehension(body, first)
+  }
+  items.push(first)
   while true {
-    items.push(self.parse_expression_term())
     if self.peek_kind() == Comma {
       let _ = self.advance()
       if self.peek_kind() == RBracket {
         let _ = self.advance()
         break
       }
+      items.push(self.parse_expression_term())
     } else if self.peek_kind() == RBracket {
       let _ = self.advance()
       break
@@ -342,10 +353,28 @@ fn Parser::parse_brace(self : Parser) -> Term raise ParseError {
     let _ = self.advance()
     return Term::object_lit([])
   }
-  let first = self.parse_expression_term()
+  let first = self.parse_intersection()
+  if self.peek_kind() == Pipe {
+    let _ = self.advance()
+    let body = self.parse_body_until(RBrace)
+    if body.length() == 0 {
+      raise self.unexpected("a body statement")
+    }
+    let _ = self.expect(RBrace, "'}'")
+    return Term::set_comprehension(body, first)
+  }
   if self.peek_kind() == Colon {
     let _ = self.advance()
-    let first_value = self.parse_expression_term()
+    let first_value = self.parse_intersection()
+    if self.peek_kind() == Pipe {
+      let _ = self.advance()
+      let body = self.parse_body_until(RBrace)
+      if body.length() == 0 {
+        raise self.unexpected("a body statement")
+      }
+      let _ = self.expect(RBrace, "'}'")
+      return Term::object_comprehension(body, first, first_value)
+    }
     let pairs : Array[(Term, Term)] = [(first, first_value)]
     while self.peek_kind() == Comma {
       let _ = self.advance()
