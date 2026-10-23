@@ -77,9 +77,11 @@ partial evaluation、OPA REST server，也不做需要外部 I/O 的内置函数
 
 ## 当前进展与验收证据
 
-- 仓库已初始化：模块元数据、许可证、CI、CLI 骨架（`version`/`help`）；
-- `moon check --deny-warn` 与 `moon fmt --check` 通过；
-- 下一增量：lexer 与 token 位置；随后 parser、值模型、求值器；
+- 已完成：词法与语法（含推导式）、AST、值模型与 JSON 桥接、求值器核心（完整/partial 规则、
+  default/else、变量绑定、some/every/not/with input、算术与集合运算）；
+- 82 个测试在默认后端、`wasm` 与 `wasm-gc` 上全部通过；`moon check --deny-warn` 与
+  `moon fmt --check` 通过；
+- 下一增量：内置函数库、`eval` 命令与 conformance corpus；
 - 提交按"一个功能一个提交"推进，每个提交对应一个可验证的能力。
 
 ## 原创性与参考说明

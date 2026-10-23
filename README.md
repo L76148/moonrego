@@ -3,8 +3,10 @@
 A Rego (Open Policy Agent) implementation for MoonBit: lexer, parser, evaluator
 and a command line tool.
 
-Status: the project is initialised. The lexer is the next increment, and the
-public surface currently exposes only `version()` and the CLI skeleton.
+Status: the lexer, parser, AST, value model and evaluator core are in place,
+with 82 tests across the default, `wasm` and `wasm-gc` backends. The built-in
+function library, the `eval` command and the conformance corpus are the next
+increments.
 
 ## Why
 
@@ -36,8 +38,6 @@ Out of scope: bundles, decision logs, partial evaluation, the OPA REST server
 and built-ins that need external I/O.
 
 ## Install
-
-Planned for the first release:
 
 ```text
 moon add L76148/moonrego

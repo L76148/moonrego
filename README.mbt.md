@@ -3,8 +3,9 @@
 A Rego (Open Policy Agent) implementation for MoonBit: lexer, parser, evaluator
 and a command line tool.
 
-The project is developed one capability at a time. This release initialises the
-package, the licence and the command line skeleton; the lexer is next.
+The project is developed one capability at a time. This release ships the
+lexer, parser, AST, value model and evaluator core; the built-in library, the
+`eval` command and the conformance corpus are next.
 
 ## Why Rego
 
