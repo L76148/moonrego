@@ -90,7 +90,7 @@ pub(all) struct Evaluator {
   module_ : Module
   data : Value
   input : Value
-  mut rule_depth : Int
+  mut rule_depth : Int32
 } derive(@debug.Debug)
 pub fn Evaluator::new(Module, Value, Value) -> Self
 pub fn Evaluator::query(Self, Term) -> Value? raise EvalError
@@ -152,12 +152,12 @@ pub fn Module::not_equal(Self, Self) -> Bool
 pub fn Module::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Position {
-  offset : Int
-  line : Int
-  column : Int
+  offset : Int32
+  line : Int32
+  column : Int32
 } derive(Eq, @debug.Debug)
 pub fn Position::equal(Self, Self) -> Bool
-pub fn Position::new(Int, Int, Int) -> Self
+pub fn Position::new(Int32, Int32, Int32) -> Self
 pub fn Position::not_equal(Self, Self) -> Bool
 pub fn Position::to_repr(Self) -> @debug.Repr
 
@@ -310,14 +310,14 @@ pub(all) enum Value {
 } derive(Eq, @debug.Debug)
 pub fn Value::array(Array[Self]) -> Self
 pub fn Value::boolean(Bool) -> Self
-pub fn Value::compare(Self, Self) -> Int?
+pub fn Value::compare(Self, Self) -> Int32?
 pub fn Value::element(Self, Self) -> Bool
 pub fn Value::equal(Self, Self) -> Bool
 pub fn Value::equals(Self, Self) -> Bool
 pub fn Value::float(Double) -> Self
 pub fn Value::from_json(Json) -> Self
 pub fn Value::int(Int64) -> Self
-pub fn Value::length(Self) -> Int
+pub fn Value::length(Self) -> Int32
 pub fn Value::lookup(Self, Self) -> Self?
 pub fn Value::not_equal(Self, Self) -> Bool
 pub fn Value::null() -> Self
